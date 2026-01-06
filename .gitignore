@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[co]
+*.pyd
+*.so
+.Python
+
+# PyCharm
+.idea/
+.vscode/
+
+# Project-specific
+.venv/
+/dist/
+*.log
+poetry.lock
+.task/
+**/.temp*
+**/.tmp*
+**/.env.*
+**/.env*

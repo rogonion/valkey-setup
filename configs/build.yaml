@@ -1,0 +1,88 @@
+ProjectName: "valkey-setup"
+BaseImage: "registry.opensuse.org/opensuse/leap:16.0"
+
+Buildah:
+  Path: "buildah"
+
+Valkey:
+  Version: "9.0.1"
+  SourceUrl: "https://github.com/valkey-io/valkey/archive/refs/tags/9.0.1.tar.gz"
+  Prefix: "/usr/local/valkey"
+  Build:
+    Dependencies: [
+      # Core Build Tools
+      "gcc", "make", "tar", "gzip", "curl", "which", "pkg-config",
+
+      # TLS Support (Essential for production)
+      "libopenssl-devel",
+
+      # Systemd Support (For notify/status integration)
+      "systemd-devel",
+
+      # Memory Allocator (Performance)
+      "jemalloc-devel"
+    ]
+    Flags:
+      - "BUILD_TLS=yes"
+      - "USE_SYSTEMD=yes"
+      - "MALLOC=jemalloc"
+  Runtime:
+    Dependencies: [
+      "rsync", # For copying modules
+      "shadow",       # For user creation
+      "libopenssl3",  # TLS Runtime
+      "libsystemd0",  # Systemd Runtime
+      "libjemalloc2"  # Memory Runtime
+    ]
+    Resources: "resources" # Entrypoint, valkey.conf
+    Uid: 999
+    Gid: 999
+
+ValkeyJson:
+  Current: "1.0.2"
+  Versions:
+    "1.0.2":
+      SourceUrl: "https://github.com/valkey-io/valkey-json.git"
+      Build:
+        Dependencies: [
+          "cmake", "gcc-c++", "make", "git", "findutils"
+        ]
+        Flags:
+          - "--release"
+        Env:
+          - "SERVER_VERSION='9.0.1'"
+          - "CFLAGS='-march=x86-64-v3 -flto'"
+          - "CXXFLAGS='-march=x86-64-v3 -flto'"
+      Runtime:
+        Dependencies: [ ]
+
+ValkeySearch:
+  Current: "1.1.0"
+  Versions:
+    "1.1.0":
+      SourceUrl: "https://github.com/valkey-io/valkey-search.git"
+      Build:
+        Dependencies: [
+          "cmake", "gcc-c++", "make", "git", "python3", "findutils", "libopenssl-devel"
+        ]
+        Flags:
+          - "-DCMAKE_BUILD_TYPE=Release"
+        Env:
+          - "CFLAGS='-march=x86-64-v3 -flto'"
+        Cpu: 6
+      Runtime:
+        Dependencies: [ "libgomp1" ] # OpenMP runtime often needed for vector search
+
+ValkeyBloom:
+  Current: "1.0.0"
+  Versions:
+    "1.0.0":
+      SourceUrl: "https://github.com/valkey-io/valkey-bloom.git"
+      Build:
+        Dependencies: [
+          "rust", "cargo", "clang", "llvm-devel", "git", "make", "findutils"
+        ]
+        Flags:
+          - "--release"
+      Runtime:
+        Dependencies: [ ]

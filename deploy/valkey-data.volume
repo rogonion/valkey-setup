@@ -1,0 +1,15 @@
+# /etc/containers/systemd/valkey-data.volume
+
+[Unit]
+Description=Valkey Data Volume
+
+[Volume]
+# Option A: Standard Managed Volume (Simplest)
+# Podman manages the location in /var/lib/containers/storage/volumes
+User=999
+Group=999
+Label=app=valkey
+
+# Option B: Bind Mount (If you want it on a specific disk/JuiceFS)
+# Uncomment the line below and comment out Option A
+# Options=type=none,o=bind,device=/mnt/your-disk/valkey-data
