@@ -1,10 +1,10 @@
 # valkey-setup
 
-A utility for creating a customized, rootless [PostgreSQL](https://www.valkeyql.org/) container image with the option
-of including extensions from custom compiled ones to [contrib](https://www.valkeyql.org/docs/current/contrib.html).
+A utility for creating a customized, rootless [Valkey](https://valkey.io/) container image with the option
+of including compiled modules (extensions) like JSON, Search, and Bloom filters.
 
 **Base Image:** [openSUSE Leap 16.0](https://registry.opensuse.org/cgi-bin/cooverview)  
-**PostgreSQL Version:** 18.1 (Compiled from source)
+**Valkey Version:** 9.0.1 (Compiled from source)
 
 ## Pre-requisites
 
@@ -77,7 +77,7 @@ $TASKFILE_BINARY run -- --help
 
 ### Example
 
-Build valkey binaries from source:
+Build valkey core binary from source:
 
 ```shell
 TASKFILE_BINARY="./taskw"
@@ -85,275 +85,75 @@ TASKFILE_BINARY="./taskw"
 $TASKFILE_BINARY run -- containers core build
 ```
 
-Build postgis extension:
+Build specific modules:
 
 ```shell
 TASKFILE_BINARY="./taskw"
 
-$TASKFILE_BINARY run -- containers extensions postgis,pgvector,rum build
+$TASKFILE_BINARY run -- containers modules valkey-json build
 ```
 
-Build valkey runtime with postgis extension:
+Build valkey runtime including the modules:
 
 ```shell
 TASKFILE_BINARY="./taskw"
 
-$TASKFILE_BINARY run -- containers runtime build --extensions postgis
+$TASKFILE_BINARY run -- containers runtime build --modules valkey-json,valkey-search,valkey-bloom
+```
+
+Run built container using `podman`:
+
+```shell
+#!/bin/bash
+
+CONTAINER="valkey9.0.1"
+NETWORK="tumbleweed"
+NETWORK_ALIAS="valkey9.0.1"
+CONTAINER_UID=999
+CONTAINER_GID=999
+HOST_PORT=6379
+VOLUME="valkey"
+IMAGE="localhost/valkey:9.0.1"
+
+podman volume exists $VOLUME || podman volume create $VOLUME
+
+podman unshare chown -R $CONTAINER_UID:$CONTAINER_GID $(podman volume inspect $VOLUME --format '{{.Mountpoint}}')
+
+podman run -d \
+        --name $CONTAINER \
+        --network $NETWORK \
+        --network-alias $NETWORK_ALIAS \
+        --user $CONTAINER_UID:$CONTAINER_GID \
+        -p $HOST_PORT:6379 \
+        -v $VOLUME:/var/lib/valkey/data \
+        $IMAGE
 ```
 
 ## Application Container Image Features
 
-### Extensions
+### Modules
 
-Valkey provides a comprehensive set of extensions via its `contrib` package which is built by default.
+Valkey supports a dynamic module system that extends its core capabilities. This CLI tool compiles these modules from
+source and integrates them into the runtime image.
 
-In addition, an additional set of extensions that have to be built/sourced elsewhere are provided by the CLI tool.
+#### JSON Document Store
 
-Below is a sample set of extensions grouped by use-cases.
+<table> <thead> <th>Module</th> <th>Version</th> <th>Description</th> </thead> <tbody> <tr> <td><a href="https://github.com/valkey-io/valkey-json">valkey-json</a></td> <td>1.0.2</td> <td> <p>Adds native JSON support.</p> <p>Provides <code>JSON.SET</code>, <code>JSON.GET</code>, and standard <a href="https://goessner.net/articles/JsonPath/">JSONPath</a> syntax for deep access/modification.</p> </td> </tr> </tbody> </table>
 
-#### Geospatial
+#### Search & Vectors
 
-<table>
-    <thead>
-        <th>Extension</th>
-        <th>Version</th> 
-        <th>Description</th> 
-    </thead> 
-    <tbody> 
-        <tr> 
-            <td><a href="https://postgis.net/">postgis</a></td> 
-            <td>3.6.1</td> 
-            <td>
-                <p>Adds geospatial capabilities.</p>
-                <p>Provides <code>geometry</code> and <code>geography</code> types.</p>
-            </td>
-        </tr>
-        <tr> 
-            <td>postgis topology</td> 
-            <td></td> 
-            <td>Manage topological data (shared boundaries between shapes)</td>
-        </tr>
-        <tr>
-            <td>address_standardizer</td>
-            <td></td>
-            <td>Normalizes address strings into parts (street, city, zip)</td>
-        </tr>
-    </tbody>
-</table>
+<table> <thead> <th>Module</th> <th>Version</th> <th>Description</th> </thead> <tbody> <tr> <td><a href="https://github.com/valkey-io/valkey-search">valkey-search</a></td> <td>1.1.0</td> <td> <p>Secondary indexing, full-text search, and vector similarity search.</p> <p>Supports <strong>HNSW</strong> and <strong>Flat</strong> vector indexing for AI/LLM workloads.</p> <p>Automatically indexes data stored via <code>valkey-json</code>.</p> </td> </tr> </tbody> </table>
 
-#### Semantic & AI Search
+#### Probabilistic Data Structures
 
-<table>
-    <thead>
-        <th>Extension</th>
-        <th>Version</th> 
-        <th>Description</th> 
-    </thead> 
-    <tbody> 
-        <tr> 
-            <td><a href="https://github.com/pgvector/pgvector">pgvector</a></td> 
-            <td>0.8.1</td> 
-            <td>
-                <p>Adds vector search capabilities.</p>
-                <p>Provides <code>vector</code> type, and <code>hnsw</code> and <code>ivfflat</code> indexes.</p>
-            </td>
-        </tr>
-        <tr> 
-            <td>btree_gin</td> 
-            <td></td> 
-            <td>Manage topological data (shared boundaries between shapes)</td>
-        </tr>
-        <tr>
-            <td>address_standardizer</td>
-            <td>Built-in via <code>contrib</code></td>
-            <td>
-                <p>Allows standard types (int, uuid) to be indexed in GIN.</p> 
-                <p>Combine vectory query with hard scalar filter.</p>
-            </td>
-        </tr>
-    </tbody>
-</table>
-
-#### Advanced Text Search
-
-<table>
-    <thead>
-        <th>Extension</th>
-        <th>Version</th> 
-        <th>Description</th> 
-    </thead> 
-    <tbody> 
-        <tr> 
-            <td><a href="https://github.com/valkeypro/rum">rum</a></td> 
-            <td>1.3.15</td> 
-            <td>
-                <p><code>RUM</code> Index - Inverted index that stores weights and positions alongside terms.</p>
-                <p>Good for fast ranking for search results by relevance or timestamps.</p>
-            </td>
-        </tr>
-        <tr>
-            <td>pg_trgm</td>
-            <td>Built-in via <code>contrib</code></td>
-            <td>
-                <p>Break text into 3 character trigrams for similarity comparison.</p>
-                <p>Good for fuzzy search (suggestions) and typo tolerance.</p>
-            </td>
-        </tr>
-        <tr>
-            <td>fuzzystrmatch</td>
-            <td>Built-in via <code>contrib</code></td>
-            <td>
-                <p>Algorithms for string phonetics (soundex, metaphone, levenshtein).</p>
-                <p>Good for matching names that sound similar but are spelled differently.</p>
-            </td>
-        </tr>
-        <tr>
-            <td>unaccent</td>
-            <td>Built-in via <code>contrib</code></td>
-            <td>
-                <p>Removes accents/diacritics from text.</p>
-            </td>
-        </tr>
-    </tbody>
-</table>
-
-#### Performance and maintenance
-
-<table>
-    <thead>
-        <th>Extension</th>
-        <th>Version</th> 
-        <th>Description</th> 
-    </thead> 
-    <tbody>
-        <tr>
-            <td>pg_stat_statements</td>
-            <td>Built-in via <code>contrib</code></td>
-            <td>
-                <p>Tracks execution statistics of all SQL statements.</p>
-            </td>
-        </tr>
-        <tr>
-            <td>pg_buffercache</td>
-            <td>Built-in via <code>contrib</code></td>
-            <td>
-                <p>Inspects the contents of the shared buffer cache (RAM).</p>
-                <p>Debugging why specific tables are "hot" or getting evicted from memory.</p>
-            </td>
-        </tr>
-        <tr>
-            <td>auto_explain</td>
-            <td>Built-in via <code>contrib</code></td>
-            <td>
-                <p>Automatically logs the execution plan of slow queries.</p>
-            </td>
-        </tr>
-        <tr>
-            <td>pg_visibility</td>
-            <td>Built-in via <code>contrib</code></td>
-            <td>
-                <p>Inspects the visibility map and page-level details.</p>
-            </td>
-        </tr>
-    </tbody>
-</table>
-
-#### Data Types & Utilities
-
-<table>
-    <thead>
-        <th>Extension</th>
-        <th>Version</th> 
-        <th>Description</th> 
-    </thead> 
-    <tbody>
-        <tr>
-            <td>uuid-ossp</td>
-            <td>Built-in via <code>contrib</code></td>
-            <td>
-                <p>Generates UUIDs (v1, v4, etc.).</p>
-            </td>
-        </tr>
-        <tr>
-            <td>citext</td>
-            <td>Built-in via <code>contrib</code></td>
-            <td>
-                <p>Case-insensitive text type.</p>
-                <p>Emails/Usernames: Handles User@Example.com = user@example.com automatically.</p>
-            </td>
-        </tr>
-        <tr>
-            <td>hstore</td>
-            <td>Built-in via <code>contrib</code></td>
-            <td>
-                <p>Key-value store within a single column.</p>
-            </td>
-        </tr>
-        <tr>
-            <td>pgcrypto</td>
-            <td>Built-in via <code>contrib</code></td>
-            <td>
-                <p>Cryptographic functions (hashing, encryption).</p>
-            </td>
-        </tr>
-    </tbody>
-</table>
+<table> <thead> <th>Module</th> <th>Version</th> <th>Description</th> </thead> <tbody> <tr> <td><a href="https://github.com/valkey-io/valkey-bloom">valkey-bloom</a></td> <td>1.0.0</td> <td> <p>High-performance probabilistic data structures.</p> <p><strong>Bloom Filter:</strong> High-speed set membership checks with zero false negatives.</p> <p><strong>Cuckoo Filter:</strong> Similar to Bloom but supports deletion.</p> <p><strong>Count-Min Sketch:</strong> Memory-efficient frequency counting.</p> </td> </tr> </tbody> </table>
 
 ### Ports
 
-<table>
-    <thead>
-        <th>Port</th>
-        <th>Purpose</th> 
-    </thead> 
-    <tbody>
-        <tr> 
-            <td><code>5432</code></td> 
-            <td><strong>Default PostgreSQL Port.</strong> Map this to your host using <code>-p 5432:5432</code> to access the database.</td>
-        </tr>
-    </tbody>
-</table>
+<table> <thead> <th>Port</th> <th>Purpose</th> </thead> <tbody> <tr> <td><code>6379</code></td> <td><strong>Default Valkey Port.</strong> Map this to your host using <code>-p 6379:6379</code>.</td> </tr> </tbody> </table>
 
 ### Volumes
 
-<table>
-    <thead>
-        <th>Path</th>
-        <th>Purpose</th>
-    </thead>
-    <tbody> 
-        <tr> 
-            <td><code>/var/lib/pgsql/data/18</code></td> 
-            <td><strong>Data Directory.</strong> Stores all database files (tables, WAL, indexes).
-            <strong>Note:</strong> Ensure you mount a volume here to persist data across restarts.</td>
-        </tr>
-    </tbody>
-</table>
+<table> <thead> <th>Path</th> <th>Purpose</th> </thead> <tbody> <tr> <td><code>/var/lib/valkey/data</code></td> <td><strong>Data Directory.</strong> Stores the persistence files (<code>dump.rdb</code> and <code>appendonly.aof</code>). <strong>Note:</strong> Ensure you mount a volume here to prevent data loss on restart.</td> </tr> </tbody> </table>
 
-### Environment variables
-
-<table>
-    <thead> 
-        <th>Name</th>
-        <th>Default</th>
-        <th>Purpose</th>
-    </thead>
-    <tbody>
-        <tr>
-            <td><code>VALKEY_USER</code></td>
-            <td><code>valkey</code></td>
-            <td>Sets the superuser for the database.</td>
-        </tr>
-        <tr>
-            <td><code>VALKEY_PASSWORD</code></td>
-            <td>(None)</td>
-            <td>Sets the password for the superuser. <strong>Highly Recommended</strong> for security.</td>
-        </tr>
-        <tr>
-            <td><code>PGDATA</code></td>
-            <td><code>/var/lib/pgsql/data/18</code></td>
-            <td>Internal pointer to the data volume. Generally should not be changed.</td>
-        </tr>
-    </tbody>
-</table>
 
