@@ -176,6 +176,11 @@ class RuntimeBuilder(BaseBuilder):
                 ("--label", f"org.valkey.version={self.config.Valkey.Version}"),
                 ("--label", f"org.valkey.prefix={self.config.Valkey.Prefix}"),
             ])
+            if self.config.Valkey.Runtime.Ports:
+                for port in self.config.Valkey.Runtime.Ports:
+                    container.configure([
+                        ("--port", f"{port}")
+                    ])
             image_name_tag = self.image_name + ":" + self.image_tag
             container.commit(image_name_tag)
 

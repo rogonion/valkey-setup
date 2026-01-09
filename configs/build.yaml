@@ -37,6 +37,8 @@ Valkey:
     Resources: "resources" # Entrypoint, valkey.conf
     Uid: 999
     Gid: 999
+    Ports:
+      - 6379
 
 ValkeyJson:
   Current: "1.0.2"
