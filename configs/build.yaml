@@ -1,5 +1,8 @@
+# Build configuration using opensuse leap as the base image
+
 ProjectName: "valkey-setup"
 BaseImage: "registry.opensuse.org/opensuse/leap:16.0"
+Distro: "suse"
 
 Buildah:
   Path: "buildah"
@@ -32,8 +35,15 @@ Valkey:
       "shadow",       # For user creation
       "libopenssl3",  # TLS Runtime
       "libsystemd0",  # Systemd Runtime
-      "libjemalloc2"  # Memory Runtime
+      "libjemalloc2",  # Memory Runtime
+      "timezone",
+      "ca-certificates",
+      "ca-certificates-mozilla"
     ]
+    RemoveDependencies: [ ]
+    Environment:
+      - "TZ=Africa/Nairobi"
+      - "LANG=C.UTF-8"
     Resources: "resources" # Entrypoint, valkey.conf
     Uid: 999
     Gid: 999
@@ -71,7 +81,7 @@ ValkeySearch:
           - "-DCMAKE_BUILD_TYPE=Release"
         Env:
           - "CFLAGS='-march=x86-64-v3 -flto'"
-        Cpu: 6
+        Cpu: 12
       Runtime:
         Dependencies: [ "libgomp1" ] # OpenMP runtime often needed for vector search
 

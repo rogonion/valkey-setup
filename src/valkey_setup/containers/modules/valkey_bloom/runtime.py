@@ -1,4 +1,4 @@
-from valkey_setup.core import BaseRuntime
+from valkey_setup.core import BaseRuntime, init_base_distro
 
 
 class ValkeyBloomRuntime(BaseRuntime):
@@ -19,15 +19,14 @@ class ValkeyBloomRuntime(BaseRuntime):
 
         valkeybloom_source_image = f"{self.config.ProjectName}-valkeybloom" + ":" + self.config.Valkey.Version + "-" + self.ext_version
 
+        base_distro = init_base_distro(self.config.Distro, self.src_container)
         if self.version_config.Runtime and self.version_config.Runtime.Dependencies:
             deps = self.version_config.Runtime.Dependencies
             self.log(f"[bold blue]Installing dependencies[/bold blue]: {deps}")
 
-            self.src_container.run(
-                command=[
-                            "zypper", "--non-interactive", "--gpg-auto-import-keys",
-                            "install", "--no-recommends", "-y"
-                        ] + deps
+            base_distro.install_packages(
+                packages=deps,
+                extra_cache_keys={"step": "deps", "packages": sorted(deps)}
             )
 
         staging_dir = f"/tmp/stage_valkeybloom-{self.ext_version}"

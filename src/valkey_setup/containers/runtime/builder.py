@@ -4,14 +4,15 @@ from typing import Tuple, List, Optional
 from valkey_setup.containers.modules.valkey_bloom import ValkeyBloomRuntime
 from valkey_setup.containers.modules.valkey_json import ValkeyJsonRuntime
 from valkey_setup.containers.modules.valkey_search import ValkeySearchRuntime
-from valkey_setup.core import BaseBuilder, BuildSpec, prune_cache_images, BuildahContainer
+from valkey_setup.core import BaseBuilder, BuildSpec, prune_cache_images, BuildahContainer, init_base_distro
 
 MODULES = ["valkey-json", "valkey-search", "valkey-bloom"]
 
 
 class RuntimeBuilder(BaseBuilder):
     def __init__(self, config: BuildSpec, cache_prefix: str = "", image_name: str = "", image_tag: str = "",
-                 modules: Optional[List[Tuple[str, str]]] = None):
+                 modules: Optional[List[Tuple[str, str]]] = None, remove_package_manager: bool = True,
+                 squash: bool = True):
         super().__init__(config, cache_prefix)
 
         if len(image_name) > 0:
@@ -30,6 +31,8 @@ class RuntimeBuilder(BaseBuilder):
                     raise RuntimeError(f"Module '{module[0]}' not found.")
 
         self.modules = modules
+        self.remove_package_manager = remove_package_manager
+        self.squash = squash
 
     def _init_cache_prefix(self, cache_prefix: str):
         if len(cache_prefix) > 0:
@@ -48,6 +51,7 @@ class RuntimeBuilder(BaseBuilder):
                 config=self.config,
                 cache_prefix=self.cache_prefix
         ) as container:
+            base_distro = init_base_distro(self.config.Distro, container)
 
             self.log(f"[bold blue]Step {current_step}[/bold blue]: Retrieving valkey binaries")
 
@@ -59,12 +63,10 @@ class RuntimeBuilder(BaseBuilder):
             self.log(
                 f"[bold blue]Step {current_step}[/bold blue]: Installing valkey runtime dependencies")
 
-            container.run_cached(
-                command=[
-                    "sh", "-c",
-                    f"""
-                        zypper --non-interactive refresh &&
-                        zypper --non-interactive install """ + " ".join(self.config.Valkey.Runtime.Dependencies)],
+            base_distro.refresh_package_repository()
+
+            base_distro.install_packages(
+                packages=self.config.Valkey.Runtime.Dependencies,
                 extra_cache_keys={"step": "deps", "packages": sorted(self.config.Valkey.Runtime.Dependencies)}
             )
 
@@ -87,12 +89,15 @@ class RuntimeBuilder(BaseBuilder):
                             self.log(f'[bold red]Error[/bold red]: ')
                             raise RuntimeError(f"Module {module[0]} not found.")
 
+            base_distro.clean_package_repository_cache()
+
+            if self.config.Valkey.Runtime.RemoveDependencies:
+                base_distro.remove_packages(
+                    packages=self.config.Valkey.Runtime.RemoveDependencies
+                )
+
             container.run(
-                command=[
-                    "sh", "-c",
-                    f"""
-                    zypper --non-interactive remove -y rsync &&
-                    zypper clean --all"""]
+                command=["update-ca-certificates"]
             )
 
             current_step += 1
@@ -125,13 +130,20 @@ class RuntimeBuilder(BaseBuilder):
 
             data_dir = f"{base_valkey_dir}/data"
             container.run(["mkdir", "-p", data_dir])
-            container.run(["chown", "-R", f"{self.config.Valkey.Runtime.Uid}:{self.config.Valkey.Runtime.Gid}", base_valkey_dir])
+            container.run(
+                ["chown", "-R", f"{self.config.Valkey.Runtime.Uid}:{self.config.Valkey.Runtime.Gid}", base_valkey_dir])
+
+            env_configuration: List[Tuple[str, str]] = []
+            if self.config.Valkey.Runtime.Environment:
+                for env in self.config.Valkey.Runtime.Environment:
+                    env_configuration.append(("--env", env))
+
             container.configure([
                 ("--env", f"VALKEY_DATA={data_dir}"),
                 ("--volume", data_dir),
                 ("--env",
                  f"PATH={self.config.Valkey.Prefix}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin")
-            ])
+            ] + env_configuration)
 
             # Config storage folder
             container.run(
@@ -156,6 +168,12 @@ class RuntimeBuilder(BaseBuilder):
                     "/usr/local/bin/entrypoint.sh"
                 ]
             )
+
+            if self.remove_package_manager:
+                if not self.squash:
+                    self.log("[bold yellow]Warning[/bold yellow]: Please enable squashing to reduce image size.")
+                self.log("[blue dim]Removing package manager[/blue dim]")
+                base_distro.remove_package_manager()
 
             container.run(
                 command=[
@@ -182,7 +200,7 @@ class RuntimeBuilder(BaseBuilder):
                         ("--port", f"{port}")
                     ])
             image_name_tag = self.image_name + ":" + self.image_tag
-            container.commit(image_name_tag)
+            container.commit(image_name_tag, squash=self.squash)
 
             self.log(f"Image tagged as: [green]{image_name_tag}[/green]")
 
