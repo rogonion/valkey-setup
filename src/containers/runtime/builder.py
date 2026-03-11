@@ -1,10 +1,10 @@
 from pathlib import Path
 from typing import Tuple, List, Optional
 
-from valkey_setup.containers.modules.valkey_bloom import ValkeyBloomRuntime
-from valkey_setup.containers.modules.valkey_json import ValkeyJsonRuntime
-from valkey_setup.containers.modules.valkey_search import ValkeySearchRuntime
-from valkey_setup.core import BaseBuilder, BuildSpec, prune_cache_images, BuildahContainer, init_base_distro
+from src.containers.modules.valkey_bloom import ValkeyBloomRuntime
+from src.containers.modules.valkey_json import ValkeyJsonRuntime
+from src.containers.modules.valkey_search import ValkeySearchRuntime
+from src.core import BaseBuilder, BuildSpec, prune_cache_images, BuildahContainer, init_base_distro
 
 MODULES = ["valkey-json", "valkey-search", "valkey-bloom"]
 

@@ -3,24 +3,22 @@ from typing import Optional
 
 import typer
 
-from .builder import ValkeySearchBuilder
-from valkey_setup.core import load_spec, BuildSpec
+from .builder import CoreBuilder
+from src.core import load_spec, BuildSpec
 
-app = typer.Typer(help="Add vector similarity search support.")
+app = typer.Typer(help="Core binaries for valkey.")
 
 
-@app.command("build", help="Build valkey search binaries from source (valkey search).")
+@app.command("build", help="Build valkey binaries from source (core).")
 def build(
-        version: str = typer.Option("latest", "--version", "--v", help="Bloom version."),
         spec_file: Optional[Path] = typer.Option("configs/build.yaml", "--spec", "--s",
                                                  help="Path to build specification file."),
         cache_prefix: Optional[str] = typer.Option("", "--cache-prefix", "--c",
                                                    help="Optional. Custom prefix for generated images acting as cache layers.")
 ):
     """
-    Build valkey search binaries from source (valkey search).
+    Build valkey binaries from source (core).
 
-    :param version: Version of valkey search to build.
     :param spec_file: Path to build spec file.
     :param cache_prefix: Custom prefix for cache layers generated.
 
@@ -28,11 +26,11 @@ def build(
     """
     config = load_spec(spec_file, BuildSpec)
 
-    builder = ValkeySearchBuilder(config, version, cache_prefix)
+    builder = CoreBuilder(config, cache_prefix)
     builder.build()
 
 
-@app.command("delete-cache", help="Delete cache images used to build valkey search binaries from source (valkey search).")
+@app.command("delete-cache", help="Delete cache images used to build valkey binaries from source (core).")
 def delete_cache(
         spec_file: Optional[Path] = typer.Option("configs/build.yaml", "--spec", "--s",
                                                  help="Path to build specification file."),
@@ -40,7 +38,7 @@ def delete_cache(
                                                    help="Optional. Custom prefix for generated images acting as cache layers.")
 ):
     """
-    Delete cache images used to build valkey search binaries from source (valkey search).
+    Delete cache images used to build valkey binaries from source (core).
 
     :param spec_file: Path to build spec file.
     :param cache_prefix: Custom prefix for cache layers generated.
@@ -49,6 +47,6 @@ def delete_cache(
     """
     config = load_spec(spec_file, BuildSpec)
 
-    builder = ValkeySearchBuilder(config, cache_prefix)
+    builder = CoreBuilder(config, cache_prefix=cache_prefix)
 
     builder.prune_cache_images()

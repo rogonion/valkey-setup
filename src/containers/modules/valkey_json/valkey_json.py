@@ -3,22 +3,24 @@ from typing import Optional
 
 import typer
 
-from .builder import CoreBuilder
-from valkey_setup.core import load_spec, BuildSpec
+from .builder import ValkeyJsonBuilder
+from src.core import load_spec, BuildSpec
 
-app = typer.Typer(help="Core binaries for valkey.")
+app = typer.Typer(help="Add native JSON support.")
 
 
-@app.command("build", help="Build valkey binaries from source (core).")
+@app.command("build", help="Build valkey json binaries from source (valkey json).")
 def build(
+        version: str = typer.Option("latest", "--version", "--v", help="Bloom version."),
         spec_file: Optional[Path] = typer.Option("configs/build.yaml", "--spec", "--s",
                                                  help="Path to build specification file."),
         cache_prefix: Optional[str] = typer.Option("", "--cache-prefix", "--c",
                                                    help="Optional. Custom prefix for generated images acting as cache layers.")
 ):
     """
-    Build valkey binaries from source (core).
+    Build valkey json binaries from source (valkey json).
 
+    :param version: Version of valkey json to build.
     :param spec_file: Path to build spec file.
     :param cache_prefix: Custom prefix for cache layers generated.
 
@@ -26,11 +28,11 @@ def build(
     """
     config = load_spec(spec_file, BuildSpec)
 
-    builder = CoreBuilder(config, cache_prefix)
+    builder = ValkeyJsonBuilder(config, version, cache_prefix)
     builder.build()
 
 
-@app.command("delete-cache", help="Delete cache images used to build valkey binaries from source (core).")
+@app.command("delete-cache", help="Delete cache images used to build valkey json binaries from source (valkey json).")
 def delete_cache(
         spec_file: Optional[Path] = typer.Option("configs/build.yaml", "--spec", "--s",
                                                  help="Path to build specification file."),
@@ -38,7 +40,7 @@ def delete_cache(
                                                    help="Optional. Custom prefix for generated images acting as cache layers.")
 ):
     """
-    Delete cache images used to build valkey binaries from source (core).
+    Delete cache images used to build valkey json binaries from source (valkey json).
 
     :param spec_file: Path to build spec file.
     :param cache_prefix: Custom prefix for cache layers generated.
@@ -47,6 +49,6 @@ def delete_cache(
     """
     config = load_spec(spec_file, BuildSpec)
 
-    builder = CoreBuilder(config, cache_prefix=cache_prefix)
+    builder = ValkeyJsonBuilder(config, cache_prefix)
 
     builder.prune_cache_images()

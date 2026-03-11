@@ -1,19 +1,19 @@
-from valkey_setup.core import BaseBuilder, BuildSpec, BuildahContainer, prune_cache_images, init_base_distro
+from src.core import BaseBuilder, BuildSpec, BuildahContainer, prune_cache_images, init_base_distro
 
 
-class ValkeyJsonBuilder(BaseBuilder):
+class ValkeyBloomBuilder(BaseBuilder):
     def __init__(self, config: BuildSpec, ext_version: str = "", cache_prefix: str = ""):
         self._init_ext_version(config, ext_version)
         super().__init__(config, cache_prefix)
         self.base_image = self.config.BaseImage
-        self.image_name = f"{self.config.ProjectName}-valkeyjson"
+        self.image_name = f"{self.config.ProjectName}-valkeybloom"
         self.image_tag = self.config.Valkey.Version + "-" + self.ext_version
 
     def _init_ext_version(self, config: BuildSpec, ext_version: str):
         if not len(ext_version) > 0 or ext_version == "latest":
-            ext_version = config.ValkeyJson.Current
+            ext_version = config.ValkeyBloom.Current
 
-        for version, data in config.ValkeyJson.Versions.items():
+        for version, data in config.ValkeyBloom.Versions.items():
             if version == ext_version:
                 self.ext_version = ext_version
                 self.version_config = data
@@ -25,10 +25,10 @@ class ValkeyJsonBuilder(BaseBuilder):
         if len(cache_prefix) > 0:
             self.cache_prefix = cache_prefix
         else:
-            self.cache_prefix = f"{self.config.ProjectName}/cache/valkeyjson/{self.ext_version}"
+            self.cache_prefix = f"{self.config.ProjectName}/cache/valkeybloom/{self.ext_version}"
 
     def build(self):
-        self.log(f"Starting build for ValkeyJson {self.ext_version}", style="bold blue")
+        self.log(f"Starting build for ValkeyBloom {self.ext_version}", style="bold blue")
 
         current_step = 1
         total_no_of_steps = 5
@@ -54,7 +54,7 @@ class ValkeyJsonBuilder(BaseBuilder):
 
             self.log(
                 f"[bold blue]Step {current_step}/{total_no_of_steps}[/bold blue]: Cloning {self.version_config.SourceUrl} tag {self.ext_version}")
-            src_dir = f"/tmp/valkeyjson-{self.ext_version}"
+            src_dir = f"/tmp/valkeybloom-{self.ext_version}"
             container.run_cached(
                 command=[
                     "git", "clone", "--depth", "1", "--branch", self.ext_version,
@@ -68,27 +68,24 @@ class ValkeyJsonBuilder(BaseBuilder):
             self.log(f"[bold blue]Step {current_step}/{total_no_of_steps}[/bold blue]: Compiling and installing")
 
             flags = " ".join(self.version_config.Build.Flags)
-            env = " ".join(self.version_config.Build.Env)
             container.run_cached(
                 command=[
                     "sh", "-c",
                     f"""
-                    cd {src_dir} && 
-                    {env} ./build.sh {flags}""",
+                    cd {src_dir} && cargo build {flags}""",
                 ],
-                extra_cache_keys={"step": "compile", "version": self.config.Valkey.Version, "flags": flags,
-                                  "env": env}
+                extra_cache_keys={"step": "compile", "version": self.config.Valkey.Version, "flags": flags}
             )
 
             module_dir = f"{self.config.Valkey.Prefix}/modules"
-            so_file_name = "valkeyjson.so"
+            so_file_name = "valkeybloom.so"
 
             container.run(
                 command=["mkdir", "-p", module_dir]
             )
 
             container.run(
-                command=["sh", "-c", f"find {src_dir} -name '*.so' -exec cp {{}} {module_dir}/{so_file_name} \\;"]
+                command=["sh", "-c", f"find {src_dir}/target/release -name '*.so' -exec cp {{}} {module_dir}/{so_file_name} \\;"]
             )
 
             current_step += 1
@@ -108,8 +105,8 @@ class ValkeyJsonBuilder(BaseBuilder):
 
             container.configure([
                 ("--label",
-                 f'org.opencontainers.image.title="Valkey {self.config.Valkey.Version} with ValkeyJson {self.ext_version}"'),
-                ("--label", f'org.valkeyjson.version={self.ext_version}'),
+                 f'org.opencontainers.image.title="Valkey {self.config.Valkey.Version} with ValkeyBloom {self.ext_version}"'),
+                ("--label", f'org.valkeybloom.version={self.ext_version}'),
             ])
             container.commit(image_name_tag)
 

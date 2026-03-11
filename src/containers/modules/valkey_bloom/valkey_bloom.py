@@ -4,7 +4,7 @@ from typing import Optional
 import typer
 
 from .builder import ValkeyBloomBuilder
-from valkey_setup.core import load_spec, BuildSpec
+from src.core import load_spec, BuildSpec
 
 app = typer.Typer(help="Add native JSON support.")
 

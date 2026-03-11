@@ -1,23 +1,23 @@
-from valkey_setup.core import BaseRuntime, init_base_distro
+from src.core import BaseRuntime, init_base_distro
 
 
-class ValkeyBloomRuntime(BaseRuntime):
+class ValkeyJsonRuntime(BaseRuntime):
     def _init_ext_version(self, ext_version: str):
         if not len(ext_version) > 0 or ext_version == "latest":
-            ext_version = self.config.ValkeyBloom.Current
+            ext_version = self.config.ValkeyJson.Current
 
-        for version, data in self.config.ValkeyBloom.Versions.items():
+        for version, data in self.config.ValkeyJson.Versions.items():
             if version == ext_version:
                 self.ext_version = ext_version
                 self.version_config = data
                 return
-    
-        raise RuntimeError(f"No config found for valkeybloom extension version {ext_version}")
+
+        raise RuntimeError(f"No config found for valkeyjson extension version {ext_version}")
 
     def build(self):
-        self.log(f"Adding ValkeyBloom extension version {self.ext_version}", style="bold blue")
+        self.log(f"Adding ValkeyJson extension version {self.ext_version}", style="bold blue")
 
-        valkeybloom_source_image = f"{self.config.ProjectName}-valkeybloom" + ":" + self.config.Valkey.Version + "-" + self.ext_version
+        valkeyjson_source_image = f"{self.config.ProjectName}-valkeyjson" + ":" + self.config.Valkey.Version + "-" + self.ext_version
 
         base_distro = init_base_distro(self.config.Distro, self.src_container)
         if self.version_config.Runtime and self.version_config.Runtime.Dependencies:
@@ -29,11 +29,11 @@ class ValkeyBloomRuntime(BaseRuntime):
                 extra_cache_keys={"step": "deps", "packages": sorted(deps)}
             )
 
-        staging_dir = f"/tmp/stage_valkeybloom-{self.ext_version}"
-        self.log(f"[bold blue]Copying valkeybloom source into staging directory[/bold blue]: {staging_dir}")
+        staging_dir = f"/tmp/stage_valkeyjson-{self.ext_version}"
+        self.log(f"[bold blue]Copying valkeyjson source into staging directory[/bold blue]: {staging_dir}")
 
         self.src_container.copy_container_current(
-            valkeybloom_source_image,
+            valkeyjson_source_image,
             self.config.Valkey.Prefix,
             staging_dir
         )
