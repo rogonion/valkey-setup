@@ -7,7 +7,7 @@ Requires=valkey-data.volume
 
 [Container]
 # 1. The Image Contract
-Image=localhost/valkey:9.0.1
+Image=localhost/valkey-setup/runtime:9.0.1-default
 
 # 2. The User Contract
 # We match the UID defined in your build (999)

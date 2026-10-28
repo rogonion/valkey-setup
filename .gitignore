@@ -1,21 +1,15 @@
+# Tarball cache (verified sources for artifact builds)
+.cache/
+
+# Scratch / temporary files (build logs etc.)
+**/.tmp/
+**/.temp/
+
 # Python
-__pycache__/
-*.py[co]
-*.pyd
-*.so
-.Python
-
-# PyCharm
-.idea/
-.vscode/
-
-# Project-specific
 .venv/
-/dist/
-*.log
-poetry.lock
-.task/
-**/.temp*
-**/.tmp*
-**/.env.*
-**/.env*
+__pycache__/
+*.egg-info/
+.pytest_cache/
+
+# IDE
+.idea/

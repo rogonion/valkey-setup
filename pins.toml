@@ -1,0 +1,68 @@
+# Pinned upstream sources: the single versions file.
+# sha256 = `sha256sum` of the archive. Upgrading = edit here, then re-run;
+# a stale artifact / runtime image triggers a rebuild automatically.
+#
+# Known pinning gaps (documented in docs/architecture/description/0001-system_overview.md):
+# - valkey-search's CMake FetchContent-pulls its submodules (gRPC, Protobuf,
+#   Abseil, GTest) at build time, and valkey-bloom's cargo build resolves
+#   crates from crates.io: their transitive sources are not sha256-pinned yet.
+
+[valkey]
+version = "9.0.1"
+archive = "valkey-9.0.1.tar.gz"
+url = "https://github.com/valkey-io/valkey/archive/refs/tags/9.0.1.tar.gz"
+sha256 = "9cfbc5f32a2a6058ee0f8c532b9c4d24167cc49d719f091dd75f1bb8353a1fc5"
+
+[modules.valkey-json]
+version = "1.0.2"
+archive = "valkey-json-1.0.2.tar.gz"
+url = "https://github.com/valkey-io/valkey-json/archive/refs/tags/1.0.2.tar.gz"
+sha256 = "e0de838d14f908c3a17aa58f51e8ed573477deac433dfb557c45c6f594b52d50"
+artifact = "valkeyjson.so"
+build_packages = [
+    "cmake",
+    "gcc-c++",
+    "make",
+    "git",
+    "findutils",
+]
+runtime_packages = []
+
+# note: valkey-json's CMake ExternalProject clones the valkey server source
+# at GIT_TAG ${SERVER_VERSION} (our pinned 9.0.1) for its module API build;
+# git is therefore a build sandbox requirement (documented pinning gap).
+
+[modules.valkey-search]
+version = "1.1.0"
+archive = "valkey-search-1.1.0.tar.gz"
+url = "https://github.com/valkey-io/valkey-search/archive/refs/tags/1.1.0.tar.gz"
+sha256 = "bd1a41b23f7dc2477f566c42d5a98d229484683779ed8a57f324ed3289c3e289"
+artifact = "valkeysearch.so"
+build_packages = [
+    "cmake",
+    "gcc-c++",
+    "make",
+    "git",
+    "findutils",
+    "python3",
+    "libopenssl-devel",
+]
+runtime_packages = [
+    "libgomp1", # OpenMP runtime for vector search
+]
+
+[modules.valkey-bloom]
+version = "1.0.0"
+archive = "valkey-bloom-1.0.0.tar.gz"
+url = "https://github.com/valkey-io/valkey-bloom/archive/refs/tags/1.0.0.tar.gz"
+sha256 = "8b9e6e3ee8f64b8f096daabb16a4896e7e5e639051594451fa8bb0aa7c1cf9d0"
+artifact = "valkeybloom.so"
+build_packages = [
+    "rust",
+    "cargo",
+    "clang",
+    "llvm-devel",
+    "git",
+    "findutils",
+]
+runtime_packages = []

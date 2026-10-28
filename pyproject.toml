@@ -1,21 +1,53 @@
-[tool.poetry]
+[project]
 name = "valkey-setup"
-version = "0.1.0"
-description = ""
-authors = ["Declan Joseph <declan.obu@outlook.com>"]
+version = "0.2.0"
+description = "Pinned from-source Valkey builder; container images are the artifact store, the runtime image the product."
 readme = "README.md"
+authors = [
+    { name = "Declan Joseph", email = "declan.obu@outlook.com" }
+]
+requires-python = ">=3.13"
+dependencies = [
+    "httpx>=0.28.1",
+    "pydantic>=2.14.1",
+    "rich>=15.0.0",
+    "typer>=0.27.3",
+]
 
-packages = [{ include = "valkey_setup", from = "src" }]
-
-[tool.poetry.dependencies]
-python = "^3.13"
-poetry-core = "^2.1.3"
-typer = "^0.20.1"
-pyyaml = "^6.0.3"
-rich = "^14.2.0"
-pydantic = "^2.12.5"
-sh = "^2.2.2"
+[project.scripts]
+valkey-setup = "valkey_setup:main"
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["uv_build>=0.13.0,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "poethepoet>=0.49.0",
+]
+
+[tool.poe.tasks]
+
+[tool.poe.tasks.build]
+cmd = "valkey-setup build"
+help = "Build the core artifact image for a profile"
+
+[tool.poe.tasks.module]
+cmd = "valkey-setup module"
+help = "Build module artifact images for a profile (--args pass through)"
+
+[tool.poe.tasks.runtime]
+cmd = "valkey-setup runtime"
+help = "Assemble the runtime image (builds core/modules if missing)"
+
+[tool.poe.tasks.clean]
+cmd = "valkey-setup clean --cache"
+help = "Remove the podman-side leftover containers and prune cache images"
+
+[tool.poe.tasks.test]
+cmd = "pytest"
+help = "Run the test suite"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

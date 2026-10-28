@@ -1,0 +1,61 @@
+# Build profiles: how the pinned sources are configured and captured.
+# A profile selects the base image (the build sandbox), the packages
+# installed into it, the make flags, and the runtime image shape (user,
+# ports, data dir, included modules). Adding a profile = one
+# [profiles.<name>] table; profile names become image tag suffixes:
+# localhost/valkey-setup/valkey:<version>-<profile> and
+# localhost/valkey-setup/runtime:<version>-<profile>.
+
+default = "default"
+
+[profiles.default]
+base_image = "registry.opensuse.org/opensuse/leap:16.0"
+prefix = "/usr/local/valkey"
+
+# Build sandbox packages (installed in the image, never on the host).
+build_packages = [
+    "gcc",
+    "make",
+    "tar",
+    "gzip",
+    "pkgconf-pkg-config",
+    "libopenssl-devel",  # BUILD_TLS=yes
+    "systemd-devel",      # USE_SYSTEMD=yes
+    "jemalloc-devel",     # MALLOC=jemalloc
+]
+# Valkey make flags.
+build_flags = [
+    "BUILD_TLS=yes",
+    "USE_SYSTEMD=yes",
+    "MALLOC=jemalloc",
+]
+
+# Parallel compile jobs for make/cmake/cargo inside the sandbox. Bounded
+# deliberately: unbounded -j$(nproc) starves memory-constrained hosts
+# during large C++ builds (gRPC in valkey-search). Unset = half the CPUs.
+jobs = 6
+
+# Runtime image packages (daemon userland).
+runtime_packages = [
+    "shadow",       # user/group creation
+    "libopenssl3",  # TLS runtime
+    "libsystemd0",  # systemd notify runtime
+    "libjemalloc2", # allocator runtime
+]
+
+# Runtime image shape.
+uid = 999
+gid = 999
+data_dir = "/var/lib/valkey/data"
+config_dir = "/usr/share/valkey/config"
+ports = [6379]
+resources = "resources" # entrypoint.sh, valkey.conf relative to the project root
+
+# Modules built against this valkey version and merged into the runtime
+# image. Each module must be pinned in pins.toml. The module's .so is
+# loaded via valkey.conf's loadmodule directives.
+modules = [
+    "valkey-json",
+    "valkey-search",
+    "valkey-bloom",
+]
