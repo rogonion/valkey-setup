@@ -4,7 +4,14 @@ from typing import Annotated
 
 import typer
 
-from valkey_setup.adapters.cli.run import run_build, run_clean, run_module, run_runtime
+from valkey_setup.adapters.cli.run import (
+    run_build,
+    run_clean,
+    run_module,
+    run_pull,
+    run_push,
+    run_runtime,
+)
 from valkey_setup.domain.error import ValkeySetupError
 
 app = typer.Typer(
@@ -63,10 +70,18 @@ def runtime(
     profile: ProfileOption = None,
     force: Annotated[bool, typer.Option("--force", "-f", help="Rebuild even if the image exists.")] = False,
     jobs: JobsOption = None,
+    from_source: Annotated[
+        str,
+        typer.Option(
+            "--from",
+            help="How to resolve a missing runtime image: auto (pull if a "
+                 "registry is configured, else build) | build | pull.",
+        ),
+    ] = "auto",
 ) -> None:
     """Assemble the runtime image (core + modules; builds them if missing)."""
     try:
-        run_runtime(profile, force=force, jobs=jobs)
+        run_runtime(profile, force=force, jobs=jobs, source=from_source)
     except ValkeySetupError as exc:
         typer.secho(f"error: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=1) from exc
@@ -104,3 +119,23 @@ def profiles() -> None:
         typer.echo(f"  prefix:     {profile.prefix}")
         typer.echo(f"  jobs:       {profile.jobs or 'auto (half the CPUs)'}")
         typer.echo(f"  modules:    {', '.join(profile.modules) or '(none)'}")
+
+
+@app.command()
+def push(profile: ProfileOption = None) -> None:
+    """Push the profile's runtime image to the configured registry."""
+    try:
+        run_push(profile)
+    except ValkeySetupError as exc:
+        typer.secho(f"error: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from exc
+
+
+@app.command()
+def pull(profile: ProfileOption = None) -> None:
+    """Pull the profile's runtime image from the configured registry."""
+    try:
+        run_pull(profile)
+    except ValkeySetupError as exc:
+        typer.secho(f"error: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(code=1) from exc

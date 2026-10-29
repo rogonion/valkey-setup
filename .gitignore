@@ -13,3 +13,6 @@ __pycache__/
 
 # IDE
 .idea/
+
+# User-local registry configuration
+registry.toml

@@ -96,3 +96,23 @@ class FakeSandbox:
 
     def finish(self) -> None:
         self.calls.append(("finish",))
+
+
+class FakeTransport:
+    """Records pushes/pulls; pulls make the local tag resolvable."""
+
+    def __init__(self, registry) -> None:
+        self._registry = registry
+        self.pushes: list[tuple[str, str]] = []
+        self.pulls: list[tuple[str, str]] = []
+        self.remote_has: set[str] = set()
+
+    def push(self, local_tag, remote_tag, *, tls_verify=True):
+        self.pushes.append((local_tag, remote_tag))
+        self.remote_has.add(remote_tag)
+
+    def pull(self, remote_tag, local_tag, *, tls_verify=True):
+        if remote_tag not in self.remote_has:
+            raise RuntimeError(f"remote {remote_tag} not found")
+        self.pulls.append((remote_tag, local_tag))
+        self._registry.tags.add(local_tag)

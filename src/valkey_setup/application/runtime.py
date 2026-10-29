@@ -13,15 +13,19 @@ import valkey_setup.domain.ports.infra as infra_ports
 import valkey_setup.domain.ports.sandbox as sandbox_port
 from valkey_setup.application.core import BuildValkey
 from valkey_setup.application.modules import BuildModule
-from valkey_setup.domain.error import VerificationError
+from valkey_setup.application.publish import PullImages
+from valkey_setup.domain.error import ImageNotFoundError, VerificationError
 from valkey_setup.domain.model.build import (
     Pins,
     Profile,
+    RegistryConfig,
     cache_prefix,
     core_image_tag,
     module_image_tag,
     runtime_image_tag,
 )
+
+SOURCES = ("auto", "build", "pull")
 
 
 class BuildRuntime:
@@ -36,6 +40,8 @@ class BuildRuntime:
         sandbox: sandbox_port.Sandbox,
         registry: infra_ports.ImageRegistry,
         reporter: infra_ports.Reporter,
+        puller: PullImages | None = None,
+        registry_config: RegistryConfig | None = None,
     ) -> None:
         self._pins = pins
         self._core = core_builder
@@ -43,11 +49,19 @@ class BuildRuntime:
         self._sandbox = sandbox
         self._registry = registry
         self._reporter = reporter
+        self._puller = puller
+        self._registry_config = registry_config
 
-    def run(self, profile: Profile, *, force: bool = False, jobs: int | None = None) -> str:
+    def run(self, profile: Profile, *, force: bool = False, jobs: int | None = None, source: str = "auto") -> str:
+        if source not in SOURCES:
+            raise ValueError(f"unknown source {source!r}; expected one of {', '.join(SOURCES)}")
         tag = runtime_image_tag(self._pins, profile)
         if not force and self._registry.image_exists(tag):
             self._reporter.info(f"image {tag} already exists (use --force to rebuild)")
+            return tag
+
+        pulled = self._resolve_runtime(profile, tag, source)
+        if pulled:
             return tag
 
         core_tag = core_image_tag(self._pins, profile)
@@ -122,6 +136,26 @@ class BuildRuntime:
 
         self._reporter.info(f"runtime image ready: {tag}")
         return tag
+
+    def _resolve_runtime(self, profile: Profile, tag: str, source: str) -> bool:
+        """Resolve a missing runtime image: pull when possible, else build.
+
+        Returns True when the image was pulled (assembly skipped - the
+        pulled image is the assembled product). --from build keeps the
+        from-source path explicit; --from pull refuses to build.
+        """
+        if self._registry.image_exists(tag) or source == "build":
+            return False
+        if self._puller is not None:
+            self._puller.run(profile, self._registry_config)
+            if self._registry.image_exists(tag):
+                return True
+        if source == "pull":
+            raise ImageNotFoundError(
+                f"--from pull but image {tag} could not be pulled; "
+                "configure registry.toml or use --from build"
+            )
+        return False
 
     def _setup_user(self, profile: Profile) -> None:
         self._sandbox.run(

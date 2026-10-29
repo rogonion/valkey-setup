@@ -6,7 +6,7 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from valkey_setup.domain.error import ConfigError
-from valkey_setup.domain.model.build import Pins, Profiles
+from valkey_setup.domain.model.build import Pins, Profiles, RegistryConfig
 
 PINS_FILE = "pins.toml"
 PROFILES_FILE = "profiles.toml"
@@ -69,3 +69,19 @@ def resolve_profile(root: Path, name: str | None):
             f"profile {profile.name!r} lists unpinned module(s): {', '.join(unknown)}"
         )
     return pins, profile
+
+REGISTRY_FILE = "registry.toml"
+
+
+def load_registry_config(root: Path) -> RegistryConfig | None:
+    """Load the user-local registry.toml (git-ignored); None when absent."""
+    path = root / REGISTRY_FILE
+    if not path.exists():
+        return None
+    try:
+        data = tomllib.loads(path.read_text())
+        return RegistryConfig.model_validate(data.get("registry", {}))
+    except (OSError, tomllib.TOMLDecodeError) as exc:
+        raise ConfigError(f"cannot read {path}: {exc}") from exc
+    except ValidationError as exc:
+        raise ConfigError(f"invalid {path}: {exc}") from exc

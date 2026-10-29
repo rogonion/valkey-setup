@@ -133,3 +133,20 @@ def effective_jobs(profile: Profile, override: int | None = None) -> int:
     if profile.jobs is not None:
         return profile.jobs
     return max(1, (os.cpu_count() or 1) // 2)
+
+
+class RegistryConfig(BaseModel):
+    """User-local registry configuration (registry.toml, git-ignored).
+
+    The namespace replaces the ``localhost/`` prefix of image names:
+    localhost/valkey-setup/runtime:9.0.1-default ->
+    <namespace>/valkey-setup/runtime:9.0.1-default.
+    """
+
+    namespace: str = Field(min_length=1)
+    tls_verify: bool = True
+
+
+def remote_image_tag(local_tag: str, config: RegistryConfig) -> str:
+    """Remote name of a locally-tagged image under the configured registry."""
+    return local_tag.replace("localhost/", f"{config.namespace}/", 1)

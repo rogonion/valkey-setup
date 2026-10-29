@@ -51,3 +51,11 @@ help = "Run the test suite"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.poe.tasks.push]
+cmd = "valkey-setup push"
+help = "Push the profile's runtime image to the configured registry"
+
+[tool.poe.tasks.pull]
+cmd = "valkey-setup pull"
+help = "Pull the profile's runtime image from the configured registry"

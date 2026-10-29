@@ -27,3 +27,13 @@ class Reporter(Protocol):
 
     def info(self, message: str) -> None: ...
     def warn(self, message: str) -> None: ...
+
+
+class ImageTransport(Protocol):
+    """Pushes and pulls images between the local store and a registry."""
+
+    def push(self, local_tag: str, remote_tag: str, *, tls_verify: bool = True) -> None: ...
+
+    def pull(self, remote_tag: str, local_tag: str, *, tls_verify: bool = True) -> None:
+        """Pull an image and retag it to its local name."""
+        ...

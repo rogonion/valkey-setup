@@ -1,0 +1,12 @@
+# Copy to registry.toml (git-ignored) and edit. When present:
+# - `push` / `pull` publish/fetch the profile's runtime image
+# - `runtime --from auto` resolves a missing image by pulling it instead of
+#   building from source (--from build | pull override)
+# Authenticate once with `buildah login <namespace-host>`.
+[registry]
+# Image namespace: replaces the local "localhost/" prefix.
+# localhost/valkey-setup/runtime:9.0.1-default
+#   -> ghcr.io/rogonion/valkey-setup/runtime:9.0.1-default
+namespace = "ghcr.io/rogonion"
+# Set false for plain-HTTP LAN registries (e.g. localhost:5000).
+tls_verify = true

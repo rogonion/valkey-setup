@@ -184,3 +184,46 @@ def test_module_recipe_carries_job_limits(pins):
         cflags="-O2", workers=2,
     )
     assert "cargo build --release -j 2" in bloom_recipe.build_command
+
+
+def test_runtime_pull_mode_and_push_mapping(pins, profile, tmp_path):
+    from fakes import FakeTransport
+
+    from valkey_setup.application.publish import PullImages, PushImages
+    from valkey_setup.domain.error import ConfigError, ImageNotFoundError
+    from valkey_setup.domain.model.build import RegistryConfig, remote_image_tag
+
+    # pull mode without a registry: refuses to build
+    sandbox = FakeSandbox(version_output="v=9.0.1")
+    core, modules = _builders(pins, sandbox, FakeRegistry(), FakeReporter())
+    runtime = BuildRuntime(
+        pins=pins, core_builder=core, module_builder=modules,
+        sandbox=sandbox, registry=FakeRegistry(), reporter=FakeReporter(),
+    )
+    with pytest.raises(ImageNotFoundError, match="pull"):
+        runtime.run(profile, source="pull")
+
+    # auto with a configured registry and a remote image: pulls, no build
+    registry = FakeRegistry()
+    transport = FakeTransport(registry)
+    config = RegistryConfig(namespace="reg.example.org", tls_verify=False)
+    transport.remote_has.add(remote_image_tag(RUNTIME_TAG, config))
+    sandbox = FakeSandbox(version_output="v=9.0.1")
+    core, modules = _builders(pins, sandbox, registry, FakeReporter())
+    puller = PullImages(pins=pins, transport=transport, reporter=FakeReporter())
+    runtime = BuildRuntime(
+        pins=pins, core_builder=core, module_builder=modules,
+        sandbox=sandbox, registry=registry, reporter=FakeReporter(),
+        puller=puller, registry_config=config,
+    )
+    assert runtime.run(profile, source="auto") == RUNTIME_TAG
+    assert transport.pulls == [(remote_image_tag(RUNTIME_TAG, config), RUNTIME_TAG)]
+    assert registry.image_exists(RUNTIME_TAG)
+    assert sandbox.calls == []  # nothing compiled
+
+    # push maps the local runtime tag to the configured namespace
+    with pytest.raises(ConfigError, match="registry.toml"):
+        PushImages(pins=pins, transport=transport, reporter=FakeReporter()).run(profile, None)
+    remote = PushImages(pins=pins, transport=transport, reporter=FakeReporter()).run(profile, config)
+    assert remote == remote_image_tag(RUNTIME_TAG, config)
+    assert (RUNTIME_TAG, remote) in transport.pushes
